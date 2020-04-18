@@ -19,7 +19,7 @@ This is how the form state is kept internally (in a typesafe maner). Actuall val
 - `touched` : whether this node or a descendent has been touched (focused then blured)
 - `dirty` : whether this node or a descendent has been changed
 - `errors` : containing the errors for this node (not its descendents). Usually, on would only have errors for leaf nodes (strings, numbers ...), but sometimes, you want to validate a non leaf node, for exemple validate an array length, or some aggregate value (the sum of a `quantity` property for exemple).
-- `validable` : whether the validation is activated for this node (no effects on descendents). You can skip validation for a node (since validation, as you will see, will validate multiple nodes).
+- `validable` : whether the validation is activated for this node (no effects on descendents). You can skip validation for a node (since validation, as you will see, will validate multiple nodes). Usefull if you want to skip validation for a disabled portion of your form.
 - `validate` : a user defined method validating the value of this node (not its descendents).
 
 ### Changing
