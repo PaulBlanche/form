@@ -1,6 +1,7 @@
 import * as React from 'react'
 import * as form from './form'
 import { Lense, lense } from './lense'
+import * as yup from 'yup'
 
 type State<VALUE extends form.value.Object> = {
     /** current form */
@@ -214,22 +215,37 @@ export type UseForm<VALUE extends form.value.Object> = FieldOf<VALUE> & {
     useField: <FIELD_VALUE>(lense:Lense<VALUE, FIELD_VALUE>, options?: FieldOptions<VALUE, FIELD_VALUE>) => FieldOf<FIELD_VALUE>;
 }
 
-type ChangeStrategy<VALUE> = (validate:() => Promise<form.Form<VALUE>>) => void;
+type VoidStrategy<VALUE> = (validate:() => Promise<form.Form<VALUE>>) => void;
 type BlurStrategy<VALUE> = (validate:() => Promise<form.Form<VALUE>>) => void;
 type SubmitStrategy<VALUE> = (validate:() => Promise<form.Form<VALUE>>) => Promise<form.Form<VALUE>|undefined>;
 type Strategy<VALUE> = {
-    change: ChangeStrategy<VALUE>,
-    blur: BlurStrategy<VALUE>,
+    change: VoidStrategy<VALUE>,
+    blur: VoidStrategy<VALUE>,
     submit: SubmitStrategy<VALUE>,
 }
 
 type FieldStrategy<VALUE> = {
-    change: ChangeStrategy<VALUE>,
-    blur: BlurStrategy<VALUE>,
+    change: VoidStrategy<VALUE>,
+    blur: VoidStrategy<VALUE>,
 }
 
+export const STRATEGY = {
+    NOT: () => {},
+    IMMEDIATE: <VALUE>(validate: () => Promise<form.Form<VALUE>>) => { validate() },
+    DEBOUNCED: (timeout: number) => {
+        let handler:any = null
+        return <VALUE> (validate:() => Promise<form.Form<VALUE>>) => {
+            clearTimeout(handler)
+            handler = setTimeout(() => {
+                validate()
+                handler = null;
+            }, timeout)
 
-export function useForm<VALUE extends form.value.Object>(initial_values: VALUE, submit: (value: VALUE) => void, validate?: form.Validate<VALUE>, form_strategy: Partial<Strategy<VALUE>> = {}): UseForm<VALUE> {
+        }
+    }
+}
+
+export function useForm<VALUE extends form.value.Object>(initial_values: VALUE, submit: (value: VALUE) => void, schema?:yup.Schema<VALUE>, validate?: form.Validate<VALUE>, form_strategy: Partial<Strategy<VALUE>> = {}): UseForm<VALUE> {
     const [state, dispatch] = React.useReducer<Reducer<VALUE>, VALUE>(reducer, initial_values, (initial_values) => {
         return {
             form: form.Form(initial_values),
@@ -248,7 +264,11 @@ export function useForm<VALUE extends form.value.Object>(initial_values: VALUE, 
     const rootLense = React.useMemo(() => lense<VALUE>(), []);
 
     return {
-        ...field(rootLense, { validate, field_strategy: form_strategy }),
+        ...field(rootLense, {
+            validate: make_field_validate(validate, schema),
+            field_strategy:
+            form_strategy
+        }),
         submit: React.useCallback((event: React.FormEvent) => {
             event.preventDefault()
             return submit_form(form_strategy.submit||((validate) => validate()))
@@ -259,7 +279,8 @@ export function useForm<VALUE extends form.value.Object>(initial_values: VALUE, 
     function field<FIELD_VALUE>(lense:Lense<VALUE, FIELD_VALUE>, { field_strategy = {}, validable = true, validate }: FieldOptions<VALUE, FIELD_VALUE> = {}): FieldOf<FIELD_VALUE> {
         const field = lense.field(stateRef.current.form)
         if (!field.validate) {
-            field.validate = validate;
+            console.log(schema && yup.reach(schema, lense.path))
+            field.validate = make_field_validate(validate, schema && (yup.reach(schema, lense.path) as unknown as yup.Schema<FIELD_VALUE>));
         }
 
         React.useEffect(() => {
@@ -268,16 +289,9 @@ export function useForm<VALUE extends form.value.Object>(initial_values: VALUE, 
             }
         }, [validable])
 
-        const handlerRef = React.useRef<any>(0)
-
         const strategy: FieldStrategy<VALUE> = React.useMemo(() => ({
-            change: form_strategy.change || field_strategy.change || ((validate) => {
-                clearTimeout(handlerRef.current)
-                handlerRef.current = setTimeout(validate, 400)
-            }),
-            blur: form_strategy.change || field_strategy.change || ((validate) => {
-                validate()
-            })
+            change:  field_strategy.change || form_strategy.change || STRATEGY.DEBOUNCED(400),
+            blur:  field_strategy.blur || form_strategy.blur || STRATEGY.IMMEDIATE
         }), [])
 
         return React.useMemo(() => {
@@ -342,11 +356,33 @@ export function useForm<VALUE extends form.value.Object>(initial_values: VALUE, 
         }
     }
 
-    function change_field<CHANGED>(lense:Lense<VALUE, CHANGED>, value:CHANGED, validation_strategy:ChangeStrategy<VALUE>): void {
+    function make_field_validate<FIELD_VALUE>(validate?:form.Validate<FIELD_VALUE>, schema?:yup.Schema<FIELD_VALUE>): form.Validate<FIELD_VALUE>|undefined {
+        if (validate === undefined && schema === undefined) {
+            return undefined
+        }
+        return async (value) => {
+            const errors = [];
+            if (validate !== undefined) {
+                errors.push(...await validate(value))
+            }
+            if (schema) {
+                try {
+                    await schema.validate(value, {
+                        abortEarly: false,
+                        recursive: false
+                    })
+                } catch (validation_error) {
+                    errors.push(...validation_error.errors)
+                }
+            }
+            return errors;
+        }
+    }
+
+    function change_field<CHANGED>(lense:Lense<VALUE, CHANGED>, value:CHANGED, validation_strategy:VoidStrategy<VALUE>): void {
         const current_form = stateRef.current.form;
         const next_form = form.change(current_form, lense.field(current_form), value)
         dispatch({ type: ACTION.CHANGE, form: next_form })
-        console.log('start validation')
         validation_strategy(() => validate_field(next_form, lense))
     }
 
@@ -371,15 +407,13 @@ export function useForm<VALUE extends form.value.Object>(initial_values: VALUE, 
     }
 
     async function validate_field<VALIDATED>(current_form:form.Form<VALUE>, lense:Lense<VALUE, VALIDATED>): Promise<form.Form<VALUE>> {
-        console.log('validation')
         dispatch({ type: ACTION.VALIDATE_START })
         const next_form = await form.validate(current_form, lense.field(current_form))
         dispatch({ type: ACTION.VALIDATE_DONE, form: next_form, for_id: current_form.id })
-        console.log('validation done')
         return next_form
     }
 
-    function push<PUSHED>(lense:Lense<VALUE, PUSHED[]>, value:PUSHED, validation_strategy:ChangeStrategy<VALUE>): number {
+    function push<PUSHED>(lense:Lense<VALUE, PUSHED[]>, value:PUSHED, validation_strategy:VoidStrategy<VALUE>): number {
         const current_form = stateRef.current.form;
         const [next_form, next_length] = form.push(current_form, lense.field(current_form), value)
         dispatch({ type: ACTION.ARRAY, form: next_form })
@@ -388,21 +422,21 @@ export function useForm<VALUE extends form.value.Object>(initial_values: VALUE, 
         return next_length;
     }
 
-    function swap<SWAPPED>(lense:Lense<VALUE, SWAPPED[]>, index_a:number, index_b:number, validation_strategy:ChangeStrategy<VALUE>): void {
+    function swap<SWAPPED>(lense:Lense<VALUE, SWAPPED[]>, index_a:number, index_b:number, validation_strategy:VoidStrategy<VALUE>): void {
         const current_form = stateRef.current.form;
         const next_form = form.swap(current_form, lense.field(current_form), index_a, index_b)
         dispatch({ type: ACTION.ARRAY, form: next_form })
         validation_strategy(() => validate_field(next_form, lense))
     }
 
-    function move<MOVED>(lense:Lense<VALUE, MOVED[]>, from:number, to:number, validation_strategy:ChangeStrategy<VALUE>): void {
+    function move<MOVED>(lense:Lense<VALUE, MOVED[]>, from:number, to:number, validation_strategy:VoidStrategy<VALUE>): void {
         const current_form = stateRef.current.form;
         const next_form = form.move(current_form, lense.field(current_form), from, to)
         dispatch({ type: ACTION.ARRAY, form: next_form })
         validation_strategy(() => validate_field(next_form, lense))
     }
 
-    function insert<INSERTED>(lense:Lense<VALUE, INSERTED[]>, value:INSERTED, index:number, validation_strategy:ChangeStrategy<VALUE>): number {
+    function insert<INSERTED>(lense:Lense<VALUE, INSERTED[]>, value:INSERTED, index:number, validation_strategy:VoidStrategy<VALUE>): number {
         const current_form = stateRef.current.form;
         const [next_form, next_length] = form.insert(current_form, lense.field(current_form), value, index)
         dispatch({ type: ACTION.ARRAY, form: next_form })
@@ -411,7 +445,7 @@ export function useForm<VALUE extends form.value.Object>(initial_values: VALUE, 
         return next_length;
     }
 
-    function unshift<UNSHIFTED>(lense:Lense<VALUE, UNSHIFTED[]>, value:UNSHIFTED, validation_strategy:ChangeStrategy<VALUE>): number {
+    function unshift<UNSHIFTED>(lense:Lense<VALUE, UNSHIFTED[]>, value:UNSHIFTED, validation_strategy:VoidStrategy<VALUE>): number {
         const current_form = stateRef.current.form;
         const [next_form, next_length] = form.unshift(current_form, lense.field(current_form), value)
         dispatch({ type: ACTION.ARRAY, form: next_form })
@@ -420,7 +454,7 @@ export function useForm<VALUE extends form.value.Object>(initial_values: VALUE, 
         return next_length;
     }
 
-    function remove<REMOVED>(lense:Lense<VALUE, REMOVED[]>, index:number, validation_strategy:ChangeStrategy<VALUE>): REMOVED {
+    function remove<REMOVED>(lense:Lense<VALUE, REMOVED[]>, index:number, validation_strategy:VoidStrategy<VALUE>): REMOVED {
         const current_form = stateRef.current.form;
         const [next_form, deleted] = form.remove(current_form, lense.field(current_form), index)
         dispatch({ type: ACTION.ARRAY, form: next_form })
@@ -429,7 +463,7 @@ export function useForm<VALUE extends form.value.Object>(initial_values: VALUE, 
         return form.value_of(deleted)
     }
 
-    function pop<POPED>(lense:Lense<VALUE, POPED[]>, validation_strategy:ChangeStrategy<VALUE>): POPED {
+    function pop<POPED>(lense:Lense<VALUE, POPED[]>, validation_strategy:VoidStrategy<VALUE>): POPED {
         const current_form = stateRef.current.form;
         const [next_form, poped] = form.pop(current_form, lense.field(current_form))
         dispatch({ type: ACTION.ARRAY, form: next_form })

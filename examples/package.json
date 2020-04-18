@@ -10,6 +10,10 @@
     "webpack-dev-server": "^3.10.3"
   },
   "dependencies": {
-    "regenerator-runtime": "^0.13.5"
+    "regenerator-runtime": "^0.13.5",
+    "yup": "^0.28.3"
+  },
+  "scripts": {
+    "dev": "webpack-dev-server"
   }
 }

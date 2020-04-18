@@ -2,6 +2,7 @@ import * as React from 'react'
 import * as ReactDOM from 'react-dom'
 import * as form from "../index"
 import "regenerator-runtime/runtime.js";
+import * as yup from 'yup'
 
 type Form = {
     first_name: string,
@@ -17,7 +18,43 @@ type Form = {
     }[]
 }
 
-const NETWORK_QUALITY = 1000;
+const schema = yup.object().shape<Form>({
+    first_name: yup.string().test('expensive', 'expensive validation', async (value) =>{
+        console.log('expensive start')
+        return new Promise<boolean>((res) => {
+            setTimeout(() => {
+                console.log('expensive done')
+                res(true)
+            }, 2000)
+        });
+    }).required(),
+    last_name: yup.string().required(),
+    age: yup.number().min(10).max(70).required(),
+    phone: yup.object().shape({
+        country: yup.string().required(),
+        number: yup.string().test('isphone', 'you must enter a valid number', (value:Form['phone']['number']) => String(Number(value)) !== value).required()
+    }).required(),
+    orders: yup.array().of(yup.object().shape({
+        product: yup.string().required(),
+        quantity: yup.number().min(0).max(100).required()
+    })).min(0).max(5).test('quantity', "you can't order more than 100 items", (orders:Form['orders']) => {
+        console.log('test 1')
+        const total = orders.reduce((total, order) => {
+          return total + order.quantity
+        }, 0)
+        return total <= 100
+      }).test('no duplicates', "you can't order twice the same product", (orders:Form['orders']) => {
+        const products = new Set()
+        return orders.every(order => {
+          if (products.has(order.product)) {
+            return false;
+          }
+          products.add(order.product)
+          return true;
+        })
+      }).required()
+
+})
 
 function Form() {
     const myform = form.useForm<Form>({
@@ -31,53 +68,21 @@ function Form() {
         orders: []
     }, value => { 
         console.log('submit', value)
+    }, schema, () => { return [] }, {
+        change: form.STRATEGY.IMMEDIATE,
+        blur: form.STRATEGY.IMMEDIATE
     })
 
     const first_name = myform.useField(myform.get('first_name'), {
-        validate : delay((value) => {
-            if (value === '') {
-                return ['this value is required']
-            }
-            return []
-        }, Math.random() * NETWORK_QUALITY)
+        field_strategy: {
+            change: form.STRATEGY.DEBOUNCED(400),
+            blur: form.STRATEGY.NOT // no validation on change, because of expensive validation
+        }
     })
-    const last_name = myform.useField(myform.get('last_name'), {
-        validate: delay((value) => {
-            if (value === '') {
-                return ["this value is required"]
-            }
-            return []
-        }, Math.random() * NETWORK_QUALITY)
-    })
-    const age = myform.useField(myform.get('age'), {
-        validate: delay((value) => {
-            if (value < 10) {
-                return ['You must be at least 10']
-            }
-            if (value > 70) {
-                return ['You are too old']
-            }
-            return []
-        }, Math.random() * NETWORK_QUALITY)
-    })
+    const last_name = myform.useField(myform.get('last_name'))
+    const age = myform.useField(myform.get('age'))
     const phone = myform.useField(myform.get('phone'))
-    const orders = myform.useField(myform.get('orders'), {
-        validate: delay((value) => {
-            const total = value.reduce((total, order) => {
-                return total + order.quantity
-            }, 0)
-            if (value.length === 0) {
-                return ['You must make at least 1 order']
-            }
-            if (value.length > 5) {
-                return ["You can't make more than 5 orders"]
-            }
-            if (total > 10) {
-                return ["You can't order more than 10 products total"]
-            }
-            return []
-        }, Math.random() * NETWORK_QUALITY)
-    })
+    const orders = myform.useField(myform.get('orders'))
 
     return <form noValidate onSubmit={myform.submit}>
         <form.FormProvider field={myform.useField}>
@@ -135,17 +140,7 @@ function Form() {
 type PhoneProps = { phone:form.ObjectField<Form['phone']> }
 const Phone = function Phone({ phone }: PhoneProps) {
     const country = form.useField(phone.get('country'))
-    const number = form.useField(phone.get('number'), {
-        validate: delay((value) => {
-            if (value === '') {
-                return ["this value is required"]
-            }
-            if (String(Number(value)) !== value) {
-                return ['you must enter a valid phone number']
-            }
-            return []
-        }, Math.random() * NETWORK_QUALITY),
-    })
+    const number = form.useField(phone.get('number'))
 
     return <fieldset>
         <div>
@@ -176,7 +171,6 @@ type Orders = { orders: form.ArrayField<Form['orders']> }
 function Orders({ orders }:Orders) {
     return <fieldset>
         {orders.map((i, array) => {
-            const order = form.useField(orders.get(i))
             return <Order
                 key={i}
                 move={{
@@ -191,7 +185,7 @@ function Orders({ orders }:Orders) {
                         }
                     }
                 }}
-                order={order}
+                orderLense={orders.get(i)}
             />
         })}
         <button type="button" onClick={() => orders.array.push({ product:'', quantity: 0 })}>Add order</button>
@@ -200,21 +194,14 @@ function Orders({ orders }:Orders) {
 
 }
 
-type OrderProps = { move:{ up:() => void, down:() => void }, order: form.ObjectField<Form['orders'][number]> }
-const Order = function Order({ move, order }:OrderProps) {
+type OrderProps = { move:{ up:() => void, down:() => void }, orderLense: form.Lense<any, Form['orders'][number]> }
+const Order = function Order({ move, orderLense }:OrderProps) {
+    const order = form.useField(orderLense)
     const [disabled, setDisabled] = React.useState(false);
     const product = form.useField(order.get('product'), {
         validable: !disabled
     })
-    const quantity = form.useField(order.get('quantity'), {
-        validate: delay<number, string[]>(value => {
-            if (value <= 0) {
-                return ['quantity must be > 0']
-            }
-            return []
-        }, Math.random() * NETWORK_QUALITY),
-        validable: !disabled
-    })
+    const quantity = form.useField(order.get('quantity'))
 
     return <fieldset>
         <button type="button" onClick={move.up}>Move Up</button>
@@ -258,7 +245,7 @@ type FieldStateProps<VALUE> = {
 function FieldState<VALUE>({ field }: FieldStateProps<VALUE>): React.ReactElement<FieldStateProps<VALUE>> {
    return <div>
         <div>id: {field.meta.id}</div>
-        <div>error: {field.meta.errors.join('')}</div>
+        <div>error: <pre>{JSON.stringify(field.meta.errors)}</pre></div>
         <div>validity: {field.valid() ? 'true' : 'false'}</div>
         <div>value: <pre>{JSON.stringify(field.value(), null, 2)}</pre></div>
         <div>dirty: {field.meta.dirty ? 'true' : 'false'}</div>

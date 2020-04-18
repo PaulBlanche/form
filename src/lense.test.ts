@@ -40,6 +40,8 @@ tap.test('constructor', (t:any) => {
     t.equals(bar0.value(initial_value), initial_value.nested[0].bar, 'arbitrary path found in value')
 
     t.equals(root_lense.get('nested').get(0), root_lense.get('nested').get(0), 'lense should be memoized')
+    t.equals(root_lense.get('nested').get(0).get('foo').path, 'nested[0].foo')
+    t.equals(root_lense.get('nested').get(1).get('bar').get(2).path, 'nested[1].bar[2]')
 
     t.end()
 })
