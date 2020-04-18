@@ -12,7 +12,7 @@ const extensions = [
 //process.env.NODE_ENV
 export default {
     input: './index.ts',
-    external: ['react'],
+    external: ['react', 'yup'],
     plugins: [
         resolve({ extensions }),
         babel({ extensions, include:['src/**/*'] }),
@@ -48,7 +48,8 @@ export default {
             replace({ 'process.env.NODE_ENV': '"development"' }),
         ],
         globals: {
-            'react': 'React'
+            'react': 'React',
+            'yup': 'yup'
         }
     }, {
         file: `./dist/${pkg.name}.umd.production.min.js`,
@@ -59,7 +60,8 @@ export default {
             terser()
         ],
         globals: {
-            'react': 'React'
+            'react': 'React',
+            'yup': 'yup'
         }
     }],
 

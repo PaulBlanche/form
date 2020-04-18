@@ -14,6 +14,7 @@ module.exports = {
   },
   resolve: {
     extensions: [ '.tsx', '.ts', '.js' ],
+    modules: [path.resolve(__dirname), path.resolve(__dirname, 'node_modules')]
   },
   output: {
     filename: 'bundle.js',
@@ -24,8 +25,4 @@ module.exports = {
     compress: true,
     port: 9000
   },
-  externals: {
-    'react': 'React',
-    'react-dom': 'ReactDOM'
-  }
 };

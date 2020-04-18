@@ -1,6 +1,6 @@
 import * as React from 'react'
 import * as ReactDOM from 'react-dom'
-import * as form from "../index"
+import * as form from "form/index"
 import "regenerator-runtime/runtime.js";
 import * as yup from 'yup'
 
@@ -26,7 +26,7 @@ const schema = yup.object().shape<Form>({
                 console.log('expensive done')
                 res(true)
             }, 2000)
-        });
+        })
     }).required(),
     last_name: yup.string().required(),
     age: yup.number().min(10).max(70).required(),
@@ -58,19 +58,25 @@ const schema = yup.object().shape<Form>({
 
 function Form() {
     const myform = form.useForm<Form>({
-        first_name: '',
-        last_name: '',
-        age: 10,
-        phone: {
-            country: '',
-            number: ''
+        initial_values: {
+            first_name: '',
+            last_name: '',
+            age: 10,
+            phone: {
+                country: '',
+                number: ''
+            },
+            orders: []
         },
-        orders: []
-    }, value => { 
-        console.log('submit', value)
-    }, schema, () => { return [] }, {
-        change: form.STRATEGY.IMMEDIATE,
-        blur: form.STRATEGY.IMMEDIATE
+        submit: value => { 
+            console.log('submit', value)
+        },
+        schema: schema,
+        form_strategy: {
+            change: form.STRATEGY.IMMEDIATE,
+            blur: form.STRATEGY.IMMEDIATE
+        },
+        yup
     })
 
     const first_name = myform.useField(myform.get('first_name'), {

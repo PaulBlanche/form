@@ -215,6 +215,22 @@ export type UseForm<VALUE extends form.value.Object> = FieldOf<VALUE> & {
     useField: <FIELD_VALUE>(lense:Lense<VALUE, FIELD_VALUE>, options?: FieldOptions<VALUE, FIELD_VALUE>) => FieldOf<FIELD_VALUE>;
 }
 
+export type BaseFormOption<VALUE> = {
+    initial_values: VALUE,
+    submit: (value: VALUE) => void,
+    validate?: form.Validate<VALUE>,
+    form_strategy?: Partial<Strategy<VALUE>>,
+}
+
+export type FormOption<VALUE> = (BaseFormOption<VALUE> & {
+    schema: undefined,
+    yup: undefined
+}) | (BaseFormOption<VALUE> & {
+    schema: yup.Schema<VALUE>,
+    yup: typeof yup
+})
+
+
 type VoidStrategy<VALUE> = (validate:() => Promise<form.Form<VALUE>>) => void;
 type BlurStrategy<VALUE> = (validate:() => Promise<form.Form<VALUE>>) => void;
 type SubmitStrategy<VALUE> = (validate:() => Promise<form.Form<VALUE>>) => Promise<form.Form<VALUE>|undefined>;
@@ -231,7 +247,7 @@ type FieldStrategy<VALUE> = {
 
 export const STRATEGY = {
     NOT: () => {},
-    IMMEDIATE: <VALUE>(validate: () => Promise<form.Form<VALUE>>) => { validate() },
+    IMMEDIATE: <VALUE>(validate: () => Promise<form.Form<VALUE>>) => { return validate() },
     DEBOUNCED: (timeout: number) => {
         let handler:any = null
         return <VALUE> (validate:() => Promise<form.Form<VALUE>>) => {
@@ -245,8 +261,8 @@ export const STRATEGY = {
     }
 }
 
-export function useForm<VALUE extends form.value.Object>(initial_values: VALUE, submit: (value: VALUE) => void, schema?:yup.Schema<VALUE>, validate?: form.Validate<VALUE>, form_strategy: Partial<Strategy<VALUE>> = {}): UseForm<VALUE> {
-    const [state, dispatch] = React.useReducer<Reducer<VALUE>, VALUE>(reducer, initial_values, (initial_values) => {
+export function useForm<VALUE extends form.value.Object>(options:FormOption<VALUE>): UseForm<VALUE> {
+    const [state, dispatch] = React.useReducer<Reducer<VALUE>, VALUE>(reducer, options.initial_values, (initial_values) => {
         return {
             form: form.Form(initial_values),
             id: 0,
@@ -265,13 +281,12 @@ export function useForm<VALUE extends form.value.Object>(initial_values: VALUE, 
 
     return {
         ...field(rootLense, {
-            validate: make_field_validate(validate, schema),
-            field_strategy:
-            form_strategy
+            validate: make_field_validate(options.validate, options.schema),
+            field_strategy: options.form_strategy
         }),
         submit: React.useCallback((event: React.FormEvent) => {
             event.preventDefault()
-            return submit_form(form_strategy.submit||((validate) => validate()))
+            return submit_form(options.form_strategy?.submit ?? STRATEGY.IMMEDIATE)
         }, []),
         useField: React.useCallback(field, [])
     }
@@ -279,8 +294,7 @@ export function useForm<VALUE extends form.value.Object>(initial_values: VALUE, 
     function field<FIELD_VALUE>(lense:Lense<VALUE, FIELD_VALUE>, { field_strategy = {}, validable = true, validate }: FieldOptions<VALUE, FIELD_VALUE> = {}): FieldOf<FIELD_VALUE> {
         const field = lense.field(stateRef.current.form)
         if (!field.validate) {
-            console.log(schema && yup.reach(schema, lense.path))
-            field.validate = make_field_validate(validate, schema && (yup.reach(schema, lense.path) as unknown as yup.Schema<FIELD_VALUE>));
+            field.validate = make_field_validate(validate, options.schema && (options.yup.reach(options.schema, lense.path) as unknown as yup.Schema<FIELD_VALUE>));
         }
 
         React.useEffect(() => {
@@ -290,8 +304,8 @@ export function useForm<VALUE extends form.value.Object>(initial_values: VALUE, 
         }, [validable])
 
         const strategy: FieldStrategy<VALUE> = React.useMemo(() => ({
-            change:  field_strategy.change || form_strategy.change || STRATEGY.DEBOUNCED(400),
-            blur:  field_strategy.blur || form_strategy.blur || STRATEGY.IMMEDIATE
+            change:  field_strategy.change ?? options.form_strategy?.change ?? STRATEGY.DEBOUNCED(400),
+            blur:  field_strategy.blur ?? options.form_strategy?.blur ?? STRATEGY.IMMEDIATE
         }), [])
 
         return React.useMemo(() => {
@@ -401,7 +415,7 @@ export function useForm<VALUE extends form.value.Object>(initial_values: VALUE, 
 
         const root_field = next_form.root as form.field.Any;
         if (form.is_valid(root_field)) {
-            submit(form.value_of(root_field))
+            options.submit(form.value_of(root_field))
         }
         dispatch({ type: ACTION.SUBMIT_DONE })
     }

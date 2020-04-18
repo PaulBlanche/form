@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "dist/form.cjs.production.min.js",
   "module": "dist/form.es.js",
-  "browser": "dist/form.umd.development.min.js",
+  "browser": "dist/form.es.js",
   "license": "MIT",
   "types": "dist/index.d.ts",
   "peerDependencies": {
@@ -36,8 +36,5 @@
   "scripts": {
     "test": "npx tap --no-ts --node-arg=--require=./register.js",
     "build": "rollup --config && tsc"
-  },
-  "dependencies": {
-    "yup": "^0.28.3"
   }
 }
