@@ -1,4 +1,4 @@
-# Form handeling in React
+# Form handling in React
 
 It's like formik, but different.
 
