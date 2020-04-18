@@ -1,7 +1,6 @@
 import resolve from '@rollup/plugin-node-resolve';
 import replace from './replace';
 import babel from 'rollup-plugin-babel';
-import typescript from '@rollup/plugin-typescript';
 import { terser } from "rollup-plugin-terser";
 import pkg from './package.json'
 
@@ -12,11 +11,10 @@ const extensions = [
 
 //process.env.NODE_ENV
 export default {
-    input: './src/index.ts',
+    input: './index.ts',
     external: ['react'],
     plugins: [
         resolve({ extensions }),
-        typescript(),
         babel({ extensions, include:['src/**/*'] }),
     ],
     output: [{

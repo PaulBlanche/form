@@ -3,6 +3,11 @@
     "presets": [
         ["@babel/env", {
             "targets": "defaults"
-        }]
-    ]
+        }],
+        ["@babel/typescript", {
+            "allowNamespaces": true
+        }],
+        "@babel/react"
+    ],
+    "plugins": ["const-enum"]
 }

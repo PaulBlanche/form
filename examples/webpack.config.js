@@ -1,8 +1,8 @@
 const path = require('path');
 
 module.exports = {
-  mode: 'production',
-  entry: './test.tsx',
+  mode: 'development',
+  entry: './main.tsx',
   module: {
     rules: [
       {
@@ -14,14 +14,15 @@ module.exports = {
   },
   resolve: {
     extensions: [ '.tsx', '.ts', '.js' ],
-    /*alias: {
-      'react-dom$': 'react-dom/profiling',
-      'scheduler/tracing': 'scheduler/tracing-profiling',
-    },*/
   },
   output: {
     filename: 'bundle.js',
     path: path.resolve(__dirname, 'dist'),
+  },
+  devServer: {
+    contentBase: path.join(__dirname),
+    compress: true,
+    port: 9000
   },
   externals: {
     'react': 'React',

@@ -1,7 +1,7 @@
 import * as React from 'react'
 import * as ReactDOM from 'react-dom'
-import * as mulr from "./src/index"
-//import * as form from './src/form'
+import * as form from "../index"
+import "regenerator-runtime/runtime.js";
 
 type Form = {
     first_name: string,
@@ -17,10 +17,10 @@ type Form = {
     }[]
 }
 
-const NETWORK_QUALITY = 10;
+const NETWORK_QUALITY = 1000;
 
 function Form() {
-    const form = mulr.useForm<Form>({
+    const myform = form.useForm<Form>({
         first_name: '',
         last_name: '',
         age: 10,
@@ -33,7 +33,7 @@ function Form() {
         console.log('submit', value)
     })
 
-    const first_name = form.useField(form.get('first_name'), {
+    const first_name = myform.useField(myform.get('first_name'), {
         validate : delay((value) => {
             if (value === '') {
                 return ['this value is required']
@@ -41,7 +41,7 @@ function Form() {
             return []
         }, Math.random() * NETWORK_QUALITY)
     })
-    const last_name = form.useField(form.get('last_name'), {
+    const last_name = myform.useField(myform.get('last_name'), {
         validate: delay((value) => {
             if (value === '') {
                 return ["this value is required"]
@@ -49,7 +49,7 @@ function Form() {
             return []
         }, Math.random() * NETWORK_QUALITY)
     })
-    const age = form.useField(form.get('age'), {
+    const age = myform.useField(myform.get('age'), {
         validate: delay((value) => {
             if (value < 10) {
                 return ['You must be at least 10']
@@ -60,8 +60,8 @@ function Form() {
             return []
         }, Math.random() * NETWORK_QUALITY)
     })
-    const phone = form.useField(form.get('phone'))
-    const orders = form.useField(form.get('orders'), {
+    const phone = myform.useField(myform.get('phone'))
+    const orders = myform.useField(myform.get('orders'), {
         validate: delay((value) => {
             const total = value.reduce((total, order) => {
                 return total + order.quantity
@@ -79,8 +79,8 @@ function Form() {
         }, Math.random() * NETWORK_QUALITY)
     })
 
-    return <form noValidate onSubmit={form.submit}>
-        <mulr.FormProvider field={form.useField}>
+    return <form noValidate onSubmit={myform.submit}>
+        <form.FormProvider field={myform.useField}>
             <fieldset>
                 <div>
                     <fieldset>
@@ -125,17 +125,17 @@ function Form() {
                 {<Orders
                     orders={orders}
                 />}
-                <FieldState field={form} />
+                <FieldState field={myform} />
             </fieldset>
-        </mulr.FormProvider>
+        </form.FormProvider>
         <button type="submit">Envoyer</button>
     </form>
 }
 
-type PhoneProps = { phone:mulr.ObjectField<Form['phone']> }
+type PhoneProps = { phone:form.ObjectField<Form['phone']> }
 const Phone = function Phone({ phone }: PhoneProps) {
-    const country = mulr.useField(phone.get('country'))
-    const number = mulr.useField(phone.get('number'), {
+    const country = form.useField(phone.get('country'))
+    const number = form.useField(phone.get('number'), {
         validate: delay((value) => {
             if (value === '') {
                 return ["this value is required"]
@@ -172,11 +172,11 @@ const Phone = function Phone({ phone }: PhoneProps) {
     </fieldset>
 }
 
-type Orders = { orders: mulr.ArrayField<Form['orders']> }
+type Orders = { orders: form.ArrayField<Form['orders']> }
 function Orders({ orders }:Orders) {
     return <fieldset>
         {orders.map((i, array) => {
-            const order = mulr.useField(orders.get(i))
+            const order = form.useField(orders.get(i))
             return <Order
                 key={i}
                 move={{
@@ -200,13 +200,13 @@ function Orders({ orders }:Orders) {
 
 }
 
-type OrderProps = { move:{ up:() => void, down:() => void }, order: mulr.ObjectField<Form['orders'][number]> }
+type OrderProps = { move:{ up:() => void, down:() => void }, order: form.ObjectField<Form['orders'][number]> }
 const Order = function Order({ move, order }:OrderProps) {
     const [disabled, setDisabled] = React.useState(false);
-    const product = mulr.useField(order.get('product'), {
+    const product = form.useField(order.get('product'), {
         validable: !disabled
     })
-    const quantity = mulr.useField(order.get('quantity'), {
+    const quantity = form.useField(order.get('quantity'), {
         validate: delay<number, string[]>(value => {
             if (value <= 0) {
                 return ['quantity must be > 0']
@@ -252,7 +252,7 @@ const Order = function Order({ move, order }:OrderProps) {
 
 
 type FieldStateProps<VALUE> = {
-    field: mulr.FieldOf<VALUE>
+    field: form.FieldOf<VALUE>
 }
 
 function FieldState<VALUE>({ field }: FieldStateProps<VALUE>): React.ReactElement<FieldStateProps<VALUE>> {
