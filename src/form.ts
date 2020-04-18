@@ -24,7 +24,6 @@ export namespace field {
         parent_id?: string
         validate?: Validate<VALUE>,
         validable: boolean
-        is_valid: boolean
     }
 
     export interface Simple<VALUE extends value.Simple> extends Base<VALUE> {
@@ -72,7 +71,6 @@ function simple_field<VALUE extends value.Simple>(value:VALUE, parent_id?:string
         errors: [],
         parent_id,
         validable: true,
-        is_valid: true
     }
 }
 
@@ -91,7 +89,6 @@ function object_field<VALUE extends value.Object>(value:VALUE, parent_id?:string
         errors: [],
         parent_id,
         validable: true,
-        is_valid: true
     }
 }
 
@@ -107,7 +104,6 @@ function array_field<VALUE extends value.Array>(value:VALUE, parent_id?:string):
         errors: [],
         parent_id,
         validable: true,
-        is_valid: true
     }
 }
 
