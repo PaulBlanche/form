@@ -1,490 +1,654 @@
-import * as React from 'react'
-import * as form from './form'
-import { Lense, lense } from './lense'
-import * as yup from 'yup'
+import * as React from "react";
+import {
+  value as _value,
+  field as _field,
+  form as _form,
+  TYPE,
+  Validate,
+} from "./form";
+import { Lense, lense } from "./lense";
+import * as yup from "yup";
+import { invariant } from "./utils";
 
-type State<VALUE extends form.value.Object> = {
-    /** current form */
-    form: form.Form<VALUE>
-    submit_count: number,
-    status: {
-        /** wheter the validation is running */
-        validating: boolean
-        submiting: boolean
-    }
-}
+type State<VALUE extends _value.Object> = {
+  /** current form */
+  form: _form.Form<VALUE>;
+  submitCount: number;
+  status: {
+    /** wheter the validation is running */
+    validating: boolean;
+    submiting: boolean;
+  };
+};
 
 const enum ACTION {
-    CHANGE,
-    BLUR,
-    VALIDATE_START,
-    VALIDATE_DONE,
-    SUBMIT_START,
-    SUBMIT_DONE,
-    ARRAY,
-    VALIDABLE,
+  CHANGE,
+  BLUR,
+  VALIDATE_START,
+  VALIDATE_DONE,
+  SUBMIT_START,
+  SUBMIT_DONE,
+  ARRAY,
+  VALIDABLE,
 }
 
 type ChangeAction<VALUE> = {
-    type: ACTION.CHANGE,
-    form: form.Form<VALUE>
-}
+  type: ACTION.CHANGE;
+  form: _form.Form<VALUE>;
+};
 
 type BlurAction<VALUE> = {
-    type: ACTION.BLUR,
-    form: form.Form<VALUE>
-}
+  type: ACTION.BLUR;
+  form: _form.Form<VALUE>;
+};
 
 type ValidateStart = {
-    type: ACTION.VALIDATE_START,
-}
+  type: ACTION.VALIDATE_START;
+};
 
 type ValidateDone<VALUE> = {
-    type: ACTION.VALIDATE_DONE,
-    for_id: number,
-    form: form.Form<VALUE>
-}
+  type: ACTION.VALIDATE_DONE;
+  for: number;
+  form: _form.Form<VALUE>;
+};
 
 type SubmitStart = {
-    type: ACTION.SUBMIT_START,
-}
+  type: ACTION.SUBMIT_START;
+};
 
 type SubmitDone = {
-    type: ACTION.SUBMIT_DONE,
-}
+  type: ACTION.SUBMIT_DONE;
+};
 
 type ArrayAction<VALUE> = {
-    type: ACTION.ARRAY,
-    form: form.Form<VALUE>
-}
+  type: ACTION.ARRAY;
+  form: _form.Form<VALUE>;
+};
 
 type ValidableAction = {
-    type: ACTION.VALIDABLE,
-    field: form.field.Any
-    validable: boolean,
-}
+  type: ACTION.VALIDABLE;
+  field: _field.Any;
+  validable: boolean;
+};
 
 type Action<VALUE> =
-    | ChangeAction<VALUE>
-    | BlurAction<VALUE>
-    | ValidateStart
-    | ValidateDone<VALUE>
-    | SubmitStart
-    | SubmitDone
-    | ArrayAction<VALUE>
-    | ValidableAction
+  | ChangeAction<VALUE>
+  | BlurAction<VALUE>
+  | ValidateStart
+  | ValidateDone<VALUE>
+  | SubmitStart
+  | SubmitDone
+  | ArrayAction<VALUE>
+  | ValidableAction;
 
-type Reducer<VALUE> = (state:State<VALUE>, action: Action<VALUE>) => State<VALUE>
-function reducer<VALUE extends form.value.Object>(state:State<VALUE>, action: Action<VALUE>): State<VALUE> {
-    switch (action.type) {
-        case ACTION.CHANGE: {
-            if (state.status.submiting) {
-                console.error("Cannot udpate the form during a submit.")
-                return state;
-            }
-            return {
-                ...state,
-                form: action.form,
-            }
-        }
-        case ACTION.BLUR: {
-            if (state.status.submiting) {
-                console.error("Cannot udpate the form during a submit.")
-                return state;
-            }
-            return {
-                ...state,
-                form: action.form,
-            }
-        }
-        case ACTION.VALIDATE_START: {
-            return {
-                ...state,
-                status: {
-                    ...state.status,
-                    validating: true
-                }
-            }
-        }
-        case ACTION.VALIDATE_DONE: {
-            if (state.form.id !== action.for_id) {
-                return {
-                    ...state,
-                    status: {
-                        ...state.status,
-                        validating: false,
-                    }
-                };
-            }
-            return {
-                ...state,
-                form: action.form,
-                status: {
-                    ...state.status,
-                    validating: false
-                }
-            }
-        }
-        case ACTION.SUBMIT_START: {
-            return {
-                ...state,
-                submit_count: state.submit_count + 1,
-                status: {
-                    ...state.status,
-                    submiting: true,
-                }
-            };
-        }
-        case ACTION.SUBMIT_DONE: {
-            return {
-                ...state,
-                status: {
-                    ...state.status,
-                    submiting: false,
-                }
-            };
-        }
-        case ACTION.ARRAY: {
-            if (state.status.submiting) {
-                console.error("Cannot udpate the form during a submit.")
-                return state;
-            }
-            return {
-                ...state,
-                form: action.form,
-            }
-        }
-        case ACTION.VALIDABLE: {
-            if (state.status.submiting) {
-                console.error("Cannot udpate the form during a submit.")
-                return state;
-            }
-            return {
-                ...state,
-                form: form.validable(state.form, action.field, action.validable),
-            }
-        }
+type Reducer<VALUE> = (
+  state: State<VALUE>,
+  action: Action<VALUE>
+) => State<VALUE>;
+function reducer<VALUE extends _value.Object>(
+  state: State<VALUE>,
+  action: Action<VALUE>
+): State<VALUE> {
+  switch (action.type) {
+    case ACTION.CHANGE: {
+      if (state.status.submiting) {
+        console.error("Cannot udpate the form during a submit.");
+        return state;
+      }
+      return {
+        ...state,
+        form: action.form,
+      };
     }
+    case ACTION.BLUR: {
+      if (state.status.submiting) {
+        console.error("Cannot udpate the form during a submit.");
+        return state;
+      }
+      return {
+        ...state,
+        form: action.form,
+      };
+    }
+    case ACTION.VALIDATE_START: {
+      return {
+        ...state,
+        status: {
+          ...state.status,
+          validating: true,
+        },
+      };
+    }
+    case ACTION.VALIDATE_DONE: {
+      if (state.form.id !== action.for) {
+        return {
+          ...state,
+          status: {
+            ...state.status,
+            validating: false,
+          },
+        };
+      }
+      return {
+        ...state,
+        form: action.form,
+        status: {
+          ...state.status,
+          validating: false,
+        },
+      };
+    }
+    case ACTION.SUBMIT_START: {
+      return {
+        ...state,
+        submitCount: state.submitCount + 1,
+        status: {
+          ...state.status,
+          submiting: true,
+        },
+      };
+    }
+    case ACTION.SUBMIT_DONE: {
+      return {
+        ...state,
+        status: {
+          ...state.status,
+          submiting: false,
+        },
+      };
+    }
+    case ACTION.ARRAY: {
+      if (state.status.submiting) {
+        console.error("Cannot udpate the form during a submit.");
+        return state;
+      }
+      return {
+        ...state,
+        form: action.form,
+      };
+    }
+    case ACTION.VALIDABLE: {
+      if (state.status.submiting) {
+        console.error("Cannot udpate the form during a submit.");
+        return state;
+      }
+      return {
+        ...state,
+        form: _form.validable(state.form, action.field, action.validable),
+      };
+    }
+  }
 }
 
 type BaseField<VALUE> = {
-    onChange: (value: VALUE) => void,
-    onBlur: () => void,
-    value: () => VALUE,
-    valid: () => boolean
-}
+  onChange: (value: VALUE) => void;
+  onBlur: () => void;
+  value: () => VALUE;
+  valid: () => boolean;
+};
 
-export type SimpleField<VALUE extends form.value.Simple> = BaseField<VALUE> & {
-    meta: form.field.Simple<VALUE>,
-}
+export type SimpleField<VALUE extends _value.Simple> = BaseField<VALUE> & {
+  meta: _field.Simple<VALUE>;
+};
 
-export type ObjectField<VALUE extends form.value.Object> = BaseField<VALUE> & {
-    meta: form.field.Object<VALUE>,
-    get: Lense<any, VALUE>['get']
-}
+export type ObjectField<ROOT_VALUE, VALUE extends _value.Object> = BaseField<
+  VALUE
+> & {
+  meta: _field.Object<VALUE>;
+  get: Lense<ROOT_VALUE, VALUE>["get"];
+};
 
-export type ArrayField<VALUE extends form.value.Array> = BaseField<VALUE> &{
-    map: <MAPPED>(callback:(index:number, array:number[]) => MAPPED) => MAPPED[],
-    meta: form.field.Array<VALUE>,
-    get: Lense<any, VALUE>['get'],
-    array: {
-        push: (value: VALUE[number]) => void,
-        swap: (index_a: number, index_b: number) => void,
-        move: (from: number, to: number ) => void,
-        insert: (value: VALUE[number], index: number) => number,
-        unshift: (value: VALUE[number]) => number,
-        remove: (index:number) => VALUE[number],
-        pop: () => VALUE[number]
-    }
-}
+export type ArrayField<ROOT_VALUE, VALUE extends _value.Array> = BaseField<
+  VALUE
+> & {
+  map: <MAPPED>(
+    callback: (index: number, array: number[]) => MAPPED
+  ) => MAPPED[];
+  meta: _field.Array<VALUE>;
+  get: Lense<ROOT_VALUE, VALUE>["get"];
+  utils: {
+    push: (value: VALUE) => void;
+    swap: (indexA: number, indexB: number) => void;
+    move: (from: number, to: number) => void;
+    insert: (value: VALUE, index: number) => number;
+    unshift: (value: VALUE) => number;
+    remove: (index: number) => VALUE;
+    pop: () => VALUE;
+  };
+};
 
-export type FieldOf<VALUE> =
-    VALUE extends form.value.Array ? ArrayField<VALUE> :
-    VALUE extends form.value.Object ? ObjectField<VALUE> :
-    VALUE extends form.value.Simple ? SimpleField<VALUE> :
-    never
+export type FieldOf<ROOT_VALUE, VALUE> = VALUE extends _value.Array
+  ? ArrayField<ROOT_VALUE, VALUE>
+  : VALUE extends _value.Object
+  ? ObjectField<ROOT_VALUE, VALUE>
+  : VALUE extends _value.Simple
+  ? SimpleField<VALUE>
+  : never;
 
 export type FieldOptions<VALUE, FIELD_VALUE> = {
-    validable?: boolean
-    validate?: form.Validate<FIELD_VALUE>,
-    field_strategy?: Partial<FieldStrategy<VALUE>>
-}
+  validable?: boolean;
+  validate?: Validate<FIELD_VALUE>;
+  fieldStrategy?: Partial<FieldStrategy<VALUE>>;
+};
 
-export type UseForm<VALUE extends form.value.Object> = FieldOf<VALUE> & {
-    submit: (event: React.FormEvent) => Promise<void>
-    useField: <FIELD_VALUE>(lense:Lense<VALUE, FIELD_VALUE>, options?: FieldOptions<VALUE, FIELD_VALUE>) => FieldOf<FIELD_VALUE>;
-}
+export type UseForm<VALUE extends _value.Object> = FieldOf<VALUE, VALUE> & {
+  submit: (event: React.FormEvent) => Promise<void>;
+  useField: <FIELD_VALUE>(
+    lense: Lense<VALUE, FIELD_VALUE>,
+    options?: FieldOptions<VALUE, FIELD_VALUE>
+  ) => FieldOf<VALUE, FIELD_VALUE>;
+};
 
 export type BaseFormOption<VALUE> = {
-    initial_values: VALUE,
-    submit: (value: VALUE) => void,
-    validate?: form.Validate<VALUE>,
-    form_strategy?: Partial<Strategy<VALUE>>,
-}
+  initialValues: VALUE;
+  submit: (value: VALUE) => void;
+  validate?: Validate<VALUE>;
+  formStrategy?: Partial<Strategy<VALUE>>;
+};
 
-export type FormOption<VALUE> = (BaseFormOption<VALUE> & {
-    schema: undefined,
-    yup: undefined
-}) | (BaseFormOption<VALUE> & {
-    schema: yup.Schema<VALUE>,
-    yup: typeof yup
-})
+export type FormOption<VALUE> =
+  | (BaseFormOption<VALUE> & {
+      schema: undefined;
+      yup: undefined;
+    })
+  | (BaseFormOption<VALUE> & {
+      schema: yup.Schema<VALUE>;
+      yup: typeof yup;
+    });
 
-
-type VoidStrategy<VALUE> = (validate:() => Promise<form.Form<VALUE>>) => void;
-type BlurStrategy<VALUE> = (validate:() => Promise<form.Form<VALUE>>) => void;
-type SubmitStrategy<VALUE> = (validate:() => Promise<form.Form<VALUE>>) => Promise<form.Form<VALUE>|undefined>;
+type VoidStrategy<VALUE> = (validate: () => Promise<_form.Form<VALUE>>) => void;
+type SubmitStrategy<VALUE> = (
+  validate: () => Promise<_form.Form<VALUE>>
+) => Promise<_form.Form<VALUE> | undefined>;
 type Strategy<VALUE> = {
-    change: VoidStrategy<VALUE>,
-    blur: VoidStrategy<VALUE>,
-    submit: SubmitStrategy<VALUE>,
-}
+  change: VoidStrategy<VALUE>;
+  blur: VoidStrategy<VALUE>;
+  submit: SubmitStrategy<VALUE>;
+};
 
 type FieldStrategy<VALUE> = {
-    change: VoidStrategy<VALUE>,
-    blur: VoidStrategy<VALUE>,
-}
+  change: VoidStrategy<VALUE>;
+  blur: VoidStrategy<VALUE>;
+};
 
 export const STRATEGY = {
-    NOT: () => {},
-    IMMEDIATE: <VALUE>(validate: () => Promise<form.Form<VALUE>>) => { return validate() },
-    DEBOUNCED: (timeout: number) => {
-        let handler:any = null
-        return <VALUE> (validate:() => Promise<form.Form<VALUE>>) => {
-            clearTimeout(handler)
-            handler = setTimeout(() => {
-                validate()
-                handler = null;
-            }, timeout)
+  NOT: (): void => {
+    /* noop */
+  },
+  IMMEDIATE: <VALUE>(
+    validate: () => Promise<_form.Form<VALUE>>
+  ): Promise<_form.Form<VALUE> | undefined> => {
+    return validate();
+  },
+  DEBOUNCED: <VALUE>(timeout: number): VoidStrategy<VALUE> => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let handler: any = null;
+    return (validate: () => Promise<_form.Form<VALUE>>): void => {
+      clearTimeout(handler);
+      handler = setTimeout(() => {
+        validate();
+        handler = null;
+      }, timeout);
+    };
+  },
+};
 
-        }
+export function useForm<VALUE extends _value.Object>(
+  options: FormOption<VALUE>
+): UseForm<VALUE> {
+  const [state, dispatch] = React.useReducer<Reducer<VALUE>, VALUE>(
+    reducer,
+    options.initialValues,
+    (initialValues) => {
+      return {
+        form: _form.Form(initialValues),
+        id: 0,
+        submitCount: 0,
+        status: {
+          submiting: false,
+          validating: false,
+        },
+      };
     }
-}
+  );
 
-export function useForm<VALUE extends form.value.Object>(options:FormOption<VALUE>): UseForm<VALUE> {
-    const [state, dispatch] = React.useReducer<Reducer<VALUE>, VALUE>(reducer, options.initial_values, (initial_values) => {
-        return {
-            form: form.Form(initial_values),
-            id: 0,
-            submit_count: 0,
-            status: {
-                submiting: false,
-                validating: false,
-            }
+  const stateRef = React.useRef(state);
+  stateRef.current = state;
+
+  const rootLense = React.useMemo(() => lense<VALUE>(), []);
+
+  return {
+    ...field(rootLense, {
+      validate: makeFieldValidate(options.validate, options.schema),
+      fieldStrategy: options.formStrategy,
+    }),
+    submit: React.useCallback((event: React.FormEvent) => {
+      event.preventDefault();
+      return submitForm(options.formStrategy?.submit ?? STRATEGY.IMMEDIATE);
+    }, []),
+    useField: React.useCallback(field, []),
+  };
+
+  function field<FIELD_VALUE>(
+    lense: Lense<VALUE, FIELD_VALUE>,
+    {
+      fieldStrategy = {},
+      validable = true,
+      validate,
+    }: FieldOptions<VALUE, FIELD_VALUE> = {}
+  ): FieldOf<VALUE, FIELD_VALUE> {
+    const field = lense.field(stateRef.current.form);
+    if (!field.validate) {
+      field.validate = makeFieldValidate(
+        validate,
+        options.schema &&
+          ((options.yup.reach(
+            options.schema,
+            lense.path
+          ) as unknown) as yup.Schema<FIELD_VALUE>)
+      );
+    }
+
+    React.useEffect(() => {
+      if (field.validable !== validable) {
+        dispatch({ type: ACTION.VALIDABLE, field: field, validable });
+      }
+    }, [validable]);
+
+    const strategy: FieldStrategy<VALUE> = React.useMemo(
+      () => ({
+        change:
+          fieldStrategy.change ??
+          options.formStrategy?.change ??
+          STRATEGY.DEBOUNCED(400),
+        blur:
+          fieldStrategy.blur ??
+          options.formStrategy?.blur ??
+          STRATEGY.IMMEDIATE,
+      }),
+      []
+    );
+
+    return React.useMemo(() => {
+      switch (field.type) {
+        case TYPE.ARRAY: {
+          invariant(Array.isArray(field.value), "");
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return arrayField(lense as any, field as any, strategy) as any;
         }
-    })
+        case TYPE.OBJECT: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return objectField(lense as any, field as any, strategy) as any;
+        }
+        case TYPE.SIMPLE: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return simpleField(lense as any, field as any, strategy) as any;
+        }
+      }
+    }, [lense, field]);
+  }
 
-    const stateRef = React.useRef(state)
-    stateRef.current = state;
+  function baseField<FIELD extends _field.Any>(
+    lense: Lense<VALUE, _field.Value<FIELD>>,
+    field: FIELD,
+    strategy: FieldStrategy<VALUE>
+  ): BaseField<_field.Value<FIELD>> {
+    const base: BaseField<_field.Value<FIELD>> = {
+      onChange: (value) => changeField(lense, value, strategy.change),
+      onBlur: () => blurField(lense, strategy.blur),
+      value: () => _field.value(field),
+      valid: () => _field.validity(field),
+    };
+    return base;
+  }
 
-    const rootLense = React.useMemo(() => lense<VALUE>(), []);
+  function arrayField<FIELD_VALUE extends _value.Array>(
+    lense: Lense<VALUE, FIELD_VALUE>,
+    field: _field.Array<FIELD_VALUE>,
+    strategy: FieldStrategy<VALUE>
+  ): ArrayField<VALUE, FIELD_VALUE> {
+    const utils: ArrayField<VALUE, FIELD_VALUE>["utils"] = {
+      push: (value) => push(lense, value, strategy.change),
+      swap: (indexA, indexB) => swap(lense, indexA, indexB, strategy.change),
+      move: (from, to) => move(lense, from, to, strategy.change),
+      insert: (value, index) => insert(lense, value, index, strategy.change),
+      unshift: (value) => unshift(lense, value, strategy.change),
+      remove: (index) => remove(lense, index, strategy.change),
+      pop: () => pop(lense, strategy.change),
+    };
 
+    const array: ArrayField<VALUE, FIELD_VALUE> = {
+      ...baseField(lense, field, strategy),
+      map: (callback) => {
+        const array = field.children.map((_, i) => i);
+        return array.map((_, i, array) => {
+          return callback(i, array);
+        });
+      },
+      meta: field,
+      get: lense.get,
+      utils,
+    };
+    return array;
+  }
+
+  function objectField<FIELD_VALUE extends _value.Object>(
+    lense: Lense<VALUE, FIELD_VALUE>,
+    field: _field.Object<FIELD_VALUE>,
+    strategy: FieldStrategy<VALUE>
+  ): ObjectField<VALUE, FIELD_VALUE> {
     return {
-        ...field(rootLense, {
-            validate: make_field_validate(options.validate, options.schema),
-            field_strategy: options.form_strategy
-        }),
-        submit: React.useCallback((event: React.FormEvent) => {
-            event.preventDefault()
-            return submit_form(options.form_strategy?.submit ?? STRATEGY.IMMEDIATE)
-        }, []),
-        useField: React.useCallback(field, [])
-    }
+      ...baseField(lense, field, strategy),
+      meta: field,
+      get: lense.get,
+    };
+  }
 
-    function field<FIELD_VALUE>(lense:Lense<VALUE, FIELD_VALUE>, { field_strategy = {}, validable = true, validate }: FieldOptions<VALUE, FIELD_VALUE> = {}): FieldOf<FIELD_VALUE> {
-        const field = lense.field(stateRef.current.form)
-        if (!field.validate) {
-            field.validate = make_field_validate(validate, options.schema && (options.yup.reach(options.schema, lense.path) as unknown as yup.Schema<FIELD_VALUE>));
+  function simpleField<FIELD_VALUE extends _value.Simple>(
+    lense: Lense<VALUE, FIELD_VALUE>,
+    field: _field.Simple<FIELD_VALUE>,
+    strategy: FieldStrategy<VALUE>
+  ): SimpleField<FIELD_VALUE> {
+    return {
+      ...baseField(lense, field, strategy),
+      meta: field,
+    };
+  }
+
+  function makeFieldValidate<FIELD_VALUE>(
+    validate?: Validate<FIELD_VALUE>,
+    schema?: yup.Schema<FIELD_VALUE>
+  ): Validate<FIELD_VALUE> | undefined {
+    if (validate === undefined && schema === undefined) {
+      return undefined;
+    }
+    return async (value): Promise<string[]> => {
+      const errors = [];
+      if (validate !== undefined) {
+        errors.push(...(await validate(value)));
+      }
+      if (schema) {
+        try {
+          await schema.validate(value, {
+            abortEarly: false,
+            recursive: false,
+          });
+        } catch (validationError) {
+          errors.push(...validationError.errors);
         }
+      }
+      return errors;
+    };
+  }
 
-        React.useEffect(() => {
-            if (field.validable !== validable) {
-                dispatch({ type: ACTION.VALIDABLE, field: field, validable })
-            }
-        }, [validable])
+  function changeField<CHANGED>(
+    lense: Lense<VALUE, CHANGED>,
+    value: CHANGED,
+    validationStrategy: VoidStrategy<VALUE>
+  ): void {
+    const currentForm = stateRef.current.form;
+    const nextForm = _form.change(currentForm, lense.field(currentForm), value);
+    dispatch({ type: ACTION.CHANGE, form: nextForm });
+    validationStrategy(() => validateField(nextForm, lense));
+  }
 
-        const strategy: FieldStrategy<VALUE> = React.useMemo(() => ({
-            change:  field_strategy.change ?? options.form_strategy?.change ?? STRATEGY.DEBOUNCED(400),
-            blur:  field_strategy.blur ?? options.form_strategy?.blur ?? STRATEGY.IMMEDIATE
-        }), [])
+  function blurField<BLURED>(
+    lense: Lense<VALUE, BLURED>,
+    validationStrategy: VoidStrategy<VALUE>
+  ): void {
+    const currentForm = stateRef.current.form;
+    const nextForm = _form.touch(currentForm, lense.field(currentForm));
+    dispatch({ type: ACTION.BLUR, form: nextForm });
+    validationStrategy(() => validateField(nextForm, lense));
+  }
 
-        return React.useMemo(() => {
-            switch (field.type) {
-                case form.TYPE.ARRAY: {
-                    return arrayField(lense as any, field as any, strategy) as any
-                }
-                case form.TYPE.OBJECT: {
-                    return objectField(lense as any, field as any, strategy) as any
-                }
-                case form.TYPE.SIMPLE: {
-                    return simpleField(lense as any, field as any, strategy) as any
-                }
-            }
-        }, [lense, field])
+  async function submitForm(
+    validationStrategy: SubmitStrategy<VALUE>
+  ): Promise<void> {
+    dispatch({ type: ACTION.SUBMIT_START });
+    const currentForm = stateRef.current.form;
+    const validatedForm = await validationStrategy(() =>
+      validateField(currentForm, rootLense)
+    );
+    const nextForm = validatedForm || stateRef.current.form;
+
+    const rootField = nextForm.root as _field.Any;
+    if (_field.validity(rootField)) {
+      options.submit(_field.value(rootField));
     }
+    dispatch({ type: ACTION.SUBMIT_DONE });
+  }
 
-    function baseField<FIELD_VALUE>(lense:Lense<VALUE, FIELD_VALUE>, field:form.field.Of<FIELD_VALUE>, strategy:FieldStrategy<VALUE>):BaseField<FIELD_VALUE> {
-        return {
-            onChange: (value) => change_field(lense, value, strategy.change),
-            onBlur: () => blur_field(lense, strategy.blur),
-            value: () => form.value_of(field),
-            valid: () => form.is_valid(field),
-        }
-    }
+  async function validateField<VALIDATED>(
+    currentForm: _form.Form<VALUE>,
+    lense: Lense<VALUE, VALIDATED>
+  ): Promise<_form.Form<VALUE>> {
+    dispatch({ type: ACTION.VALIDATE_START });
+    const nextForm = await _form.validate(
+      currentForm,
+      lense.field(currentForm)
+    );
+    dispatch({
+      type: ACTION.VALIDATE_DONE,
+      form: nextForm,
+      for: currentForm.id,
+    });
+    return nextForm;
+  }
 
-    function arrayField<FIELD_VALUE extends form.value.Array>(lense:Lense<VALUE, FIELD_VALUE>, field:form.field.Array<FIELD_VALUE>, strategy:FieldStrategy<VALUE>): ArrayField<FIELD_VALUE> {
-        return {
-            ...baseField(lense, field as any, strategy),
-            map: (callback) => {
-                const array = field.children.map((_, i) => i);
-                return array.map((_, i, array) => {
-                    return callback(i, array)
-                })
-            },
-            meta: field,
-            get: lense.get,
-            array: {
-                push: (value) => push(lense as any, value, strategy.change),
-                swap: (index_a, index_b) => swap(lense as any, index_a, index_b, strategy.change),
-                move: (from, to) => move(lense, from, to, strategy.change),
-                insert: (value, index) => insert(lense as any, value, index, strategy.change),
-                unshift: (value) => unshift(lense as any, value, strategy.change),
-                remove: (index) => remove(lense as any, index, strategy.change),
-                pop: () => pop(lense as any, strategy.change),
-            }
-        }
-    }
+  function push<PUSHED>(
+    lense: Lense<VALUE, PUSHED[]>,
+    value: PUSHED,
+    validationStrategy: VoidStrategy<VALUE>
+  ): number {
+    const currentForm = stateRef.current.form;
+    const [nextForm, nextLength] = _form.push(
+      currentForm,
+      lense.field(currentForm),
+      value
+    );
+    dispatch({ type: ACTION.ARRAY, form: nextForm });
+    validationStrategy(() => validateField(nextForm, lense));
 
-    function objectField<FIELD_VALUE extends form.value.Object>(lense:Lense<VALUE, FIELD_VALUE>, field:form.field.Object<FIELD_VALUE>, strategy:FieldStrategy<VALUE>): ObjectField<FIELD_VALUE> {
-        return {
-            ...baseField(lense, field as any, strategy),
-            meta: field,
-            get: lense.get,
-        }
-    }
+    return nextLength;
+  }
 
-    function simpleField<FIELD_VALUE extends form.value.Simple>(lense:Lense<VALUE, FIELD_VALUE>, field:form.field.Simple<FIELD_VALUE>, strategy:FieldStrategy<VALUE>): SimpleField<FIELD_VALUE> {
-        return {
-            ...baseField(lense, field as any, strategy),
-            meta: field,
-        }
-    }
+  function swap<SWAPPED>(
+    lense: Lense<VALUE, SWAPPED[]>,
+    indexA: number,
+    indexB: number,
+    validationStrategy: VoidStrategy<VALUE>
+  ): void {
+    const currenForm = stateRef.current.form;
+    const nextForm = _form.swap(
+      currenForm,
+      lense.field(currenForm),
+      indexA,
+      indexB
+    );
+    dispatch({ type: ACTION.ARRAY, form: nextForm });
+    validationStrategy(() => validateField(nextForm, lense));
+  }
 
-    function make_field_validate<FIELD_VALUE>(validate?:form.Validate<FIELD_VALUE>, schema?:yup.Schema<FIELD_VALUE>): form.Validate<FIELD_VALUE>|undefined {
-        if (validate === undefined && schema === undefined) {
-            return undefined
-        }
-        return async (value) => {
-            const errors = [];
-            if (validate !== undefined) {
-                errors.push(...await validate(value))
-            }
-            if (schema) {
-                try {
-                    await schema.validate(value, {
-                        abortEarly: false,
-                        recursive: false
-                    })
-                } catch (validation_error) {
-                    errors.push(...validation_error.errors)
-                }
-            }
-            return errors;
-        }
-    }
+  function move<MOVED>(
+    lense: Lense<VALUE, MOVED[]>,
+    from: number,
+    to: number,
+    validationStrategy: VoidStrategy<VALUE>
+  ): void {
+    const currentForm = stateRef.current.form;
+    const nextForm = _form.move(
+      currentForm,
+      lense.field(currentForm),
+      from,
+      to
+    );
+    dispatch({ type: ACTION.ARRAY, form: nextForm });
+    validationStrategy(() => validateField(nextForm, lense));
+  }
 
-    function change_field<CHANGED>(lense:Lense<VALUE, CHANGED>, value:CHANGED, validation_strategy:VoidStrategy<VALUE>): void {
-        const current_form = stateRef.current.form;
-        const next_form = form.change(current_form, lense.field(current_form), value)
-        dispatch({ type: ACTION.CHANGE, form: next_form })
-        validation_strategy(() => validate_field(next_form, lense))
-    }
+  function insert<INSERTED>(
+    lense: Lense<VALUE, INSERTED[]>,
+    value: INSERTED,
+    index: number,
+    validationStrategy: VoidStrategy<VALUE>
+  ): number {
+    const currentForm = stateRef.current.form;
+    const [nextForm, nextLength] = _form.insert(
+      currentForm,
+      lense.field(currentForm),
+      value,
+      index
+    );
+    dispatch({ type: ACTION.ARRAY, form: nextForm });
+    validationStrategy(() => validateField(nextForm, lense));
 
-    function blur_field(lense:Lense<VALUE, any>, validation_strategy:BlurStrategy<VALUE>): void {
-        const current_form = stateRef.current.form;
-        const next_form = form.touch(current_form, lense.field(current_form))
-        dispatch({ type: ACTION.BLUR, form: next_form })
-        validation_strategy(() => validate_field(next_form, lense))
-    }
+    return nextLength;
+  }
 
-    async function submit_form(validation_strategy:SubmitStrategy<VALUE>): Promise<void> {
-        dispatch({ type: ACTION.SUBMIT_START })
-        const current_form = stateRef.current.form;
-        const validated_form = await validation_strategy(() => validate_field(current_form, rootLense))
-        const next_form = validated_form || stateRef.current.form;
+  function unshift<UNSHIFTED>(
+    lense: Lense<VALUE, UNSHIFTED[]>,
+    value: UNSHIFTED,
+    validationStrategy: VoidStrategy<VALUE>
+  ): number {
+    const currentForm = stateRef.current.form;
+    const [nextForm, nextLength] = _form.unshift(
+      currentForm,
+      lense.field(currentForm),
+      value
+    );
+    dispatch({ type: ACTION.ARRAY, form: nextForm });
+    validationStrategy(() => validateField(nextForm, lense));
 
-        const root_field = next_form.root as form.field.Any;
-        if (form.is_valid(root_field)) {
-            options.submit(form.value_of(root_field))
-        }
-        dispatch({ type: ACTION.SUBMIT_DONE })
-    }
+    return nextLength;
+  }
 
-    async function validate_field<VALIDATED>(current_form:form.Form<VALUE>, lense:Lense<VALUE, VALIDATED>): Promise<form.Form<VALUE>> {
-        dispatch({ type: ACTION.VALIDATE_START })
-        const next_form = await form.validate(current_form, lense.field(current_form))
-        dispatch({ type: ACTION.VALIDATE_DONE, form: next_form, for_id: current_form.id })
-        return next_form
-    }
+  function remove<REMOVED>(
+    lense: Lense<VALUE, REMOVED[]>,
+    index: number,
+    validationStrategy: VoidStrategy<VALUE>
+  ): REMOVED {
+    const currentForm = stateRef.current.form;
+    const [nextForm, deleted] = _form.remove(
+      currentForm,
+      lense.field(currentForm),
+      index
+    );
+    dispatch({ type: ACTION.ARRAY, form: nextForm });
+    validationStrategy(() => validateField(nextForm, lense));
 
-    function push<PUSHED>(lense:Lense<VALUE, PUSHED[]>, value:PUSHED, validation_strategy:VoidStrategy<VALUE>): number {
-        const current_form = stateRef.current.form;
-        const [next_form, next_length] = form.push(current_form, lense.field(current_form), value)
-        dispatch({ type: ACTION.ARRAY, form: next_form })
-        validation_strategy(() => validate_field(next_form, lense))
+    return _field.value(deleted);
+  }
 
-        return next_length;
-    }
+  function pop<POPED>(
+    lense: Lense<VALUE, POPED[]>,
+    validationStrategy: VoidStrategy<VALUE>
+  ): POPED {
+    const currentForm = stateRef.current.form;
+    const [nextForm, poped] = _form.pop(currentForm, lense.field(currentForm));
+    dispatch({ type: ACTION.ARRAY, form: nextForm });
+    validationStrategy(() => validateField(nextForm, lense));
 
-    function swap<SWAPPED>(lense:Lense<VALUE, SWAPPED[]>, index_a:number, index_b:number, validation_strategy:VoidStrategy<VALUE>): void {
-        const current_form = stateRef.current.form;
-        const next_form = form.swap(current_form, lense.field(current_form), index_a, index_b)
-        dispatch({ type: ACTION.ARRAY, form: next_form })
-        validation_strategy(() => validate_field(next_form, lense))
-    }
-
-    function move<MOVED>(lense:Lense<VALUE, MOVED[]>, from:number, to:number, validation_strategy:VoidStrategy<VALUE>): void {
-        const current_form = stateRef.current.form;
-        const next_form = form.move(current_form, lense.field(current_form), from, to)
-        dispatch({ type: ACTION.ARRAY, form: next_form })
-        validation_strategy(() => validate_field(next_form, lense))
-    }
-
-    function insert<INSERTED>(lense:Lense<VALUE, INSERTED[]>, value:INSERTED, index:number, validation_strategy:VoidStrategy<VALUE>): number {
-        const current_form = stateRef.current.form;
-        const [next_form, next_length] = form.insert(current_form, lense.field(current_form), value, index)
-        dispatch({ type: ACTION.ARRAY, form: next_form })
-        validation_strategy(() => validate_field(next_form, lense))
-
-        return next_length;
-    }
-
-    function unshift<UNSHIFTED>(lense:Lense<VALUE, UNSHIFTED[]>, value:UNSHIFTED, validation_strategy:VoidStrategy<VALUE>): number {
-        const current_form = stateRef.current.form;
-        const [next_form, next_length] = form.unshift(current_form, lense.field(current_form), value)
-        dispatch({ type: ACTION.ARRAY, form: next_form })
-        validation_strategy(() => validate_field(next_form, lense))
-
-        return next_length;
-    }
-
-    function remove<REMOVED>(lense:Lense<VALUE, REMOVED[]>, index:number, validation_strategy:VoidStrategy<VALUE>): REMOVED {
-        const current_form = stateRef.current.form;
-        const [next_form, deleted] = form.remove(current_form, lense.field(current_form), index)
-        dispatch({ type: ACTION.ARRAY, form: next_form })
-        validation_strategy(() => validate_field(next_form, lense))
-
-        return form.value_of(deleted)
-    }
-
-    function pop<POPED>(lense:Lense<VALUE, POPED[]>, validation_strategy:VoidStrategy<VALUE>): POPED {
-        const current_form = stateRef.current.form;
-        const [next_form, poped] = form.pop(current_form, lense.field(current_form))
-        dispatch({ type: ACTION.ARRAY, form: next_form })
-        validation_strategy(() => validate_field(next_form, lense))
-
-        return form.value_of(poped);
-    }
+    return _field.value(poped);
+  }
 }
-
-
